@@ -1,0 +1,22 @@
+# Datos generados (pueden pesar cientos de MB / varios GB)
+data/raw/*.csv
+data/processed/*.csv
+!data/raw/credit_data_sample.csv
+
+# Credenciales GCP - NUNCA subir esto a git
+*.json
+!package.json
+key.json
+credentials/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
