@@ -2,11 +2,11 @@
 SELECT person_id, COUNT(*) AS cantidad
 FROM `credit-risk-analytics-506721.credit_risk_analytics.raw_credit_data`
 GROUP BY person_id
-HAVING COUNT(*) > 1
+HAVING COUNT(*) > 1;
 
 --- Validacion de valores nulos en columnas importantes
 SELECT COUNTIF(person_id IS NULL) as person_id_null, COUNTIF(monthly_income IS NULL) as monthly_income_null, COUNTIF(total_debt IS NULL) as total_debt_null
-FROM `credit-risk-analytics-506721.credit_risk_analytics.raw_credit_data`
+FROM `credit-risk-analytics-506721.credit_risk_analytics.raw_credit_data`;
 
 --- Validacion de calidad de datos en columnas numericas y categoricas
 SELECT COUNTIF(credit_utilization < 0 OR credit_utilization > 1) as invalid_credit_utilization,
