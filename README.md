@@ -18,7 +18,7 @@ tipo de pipeline analítico que sostiene ese negocio.
 
 Los datos reales de comportamiento crediticio son privados y sensibles, así
 que este proyecto usa un **dataset sintético generado a medida**
-(`python/generate_synthetic_data.py`), con variables típicas de comportamiento
+(`dags/scripts/generate_synthetic_data.py`), con variables típicas de comportamiento
 crediticio (ingresos, líneas de crédito, ratio deuda/ingreso, atrasos de pago,
 utilización de crédito) y una probabilidad de default calculada con una
 función logística — el mismo enfoque conceptual que usan los modelos de
@@ -55,12 +55,13 @@ Diccionario de columnas de `raw_credit_data`:
 credit-risk-pipeline/
 ├── data/
 │   ├── raw/            # CSVs generados (no versionados salvo una muestra chica)
-│   └── processed/       # Salidas intermedias/locales, si aplica
-├── sql/                 # DDL y queries de transformación/análisis en BigQuery
-├── python/               # Scripts de generación de datos y carga a BigQuery
-├── dags/                 # DAG de Cloud Composer / Airflow
-├── notebooks/             # Exploración y validación de datos
-├── dashboards/            # Notas/links del dashboard en Looker Studio
+│   └── processed/      # Salidas intermedias/locales, si aplica
+├── sql/                # DDL y queries de transformación/análisis en BigQuery
+├── python/             # Scripts de python con diferentes funcionalidades
+├── dags/               # DAG de Cloud Composer / Airflow
+│   └── scripts/        # Scripts de generación de datos y carga a BigQuery
+├── notebooks/          # Exploración y validación de datos
+├── dashboards/         # Notas/links del dashboard en Looker Studio
 └── README.md
 ```
 
@@ -94,9 +95,9 @@ una pregunta de negocio específica:
 
 ## Arquitectura (resumen)
 
-1. **Generación/ingesta**: `generate_synthetic_data.py` genera el dataset y lo
+1. **Generación/ingesta**: `dags/scripts/generate_synthetic_data.py` genera el dataset y lo
    deja en `data/raw/` (localmente) o en un bucket de Cloud Storage.
-2. **Carga a BigQuery**: `python/load_to_bigquery.py` carga el CSV a
+2. **Carga a BigQuery**: `dags/scripts/load_to_bigquery.py` carga el CSV a
    `raw_credit_data` mediante `google-cloud-bigquery` (`WRITE_TRUNCATE`,
    esquema explícito).
 3. **Validación de calidad**: `02_data_quality_checks.sql` confirma que los
@@ -132,11 +133,11 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Generar el dataset
-cd python
-python generate_synthetic_data.py --rows 2000000 --out ../data/raw/credit_data.csv
+cd dags/scripts
+python generate_synthetic_data.py --rows 2000000 --out ../../data/raw/credit_data.csv
 
 # Cargar a BigQuery
-python load_to_bigquery.py
+python load_to_bigquery.py --path <ruta_al_csv> --table_id <proyecto.dataset.tabla> --project_id <tu_project_id>
 ```
 
 Luego, ejecutar en orden los archivos de `sql/` (01 → 04) desde la consola de
