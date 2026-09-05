@@ -98,6 +98,25 @@ def generate_chunk(n, rng, start_id):
     return df
 
 
+def generate_dataset(n_rows, out_path, seed):
+    rng = np.random.default_rng(seed)
+    
+    rows_written = 0
+    first_chunk = True
+    start_id = 1
+
+    while rows_written < n_rows:
+        n = min(CHUNK_SIZE, n_rows - rows_written)
+        chunk = generate_chunk(n, rng, start_id)
+        chunk.to_csv(out_path, mode="w" if first_chunk else "a", header=first_chunk, index=False)
+        first_chunk = False
+        rows_written += n
+        start_id += n
+        print(f"Escritos {rows_written:,} / {n_rows:,} registros...")
+
+    print(f"Listo. Dataset generado en: {out_path}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rows", type=int, default=1_000_000, help="Cantidad total de registros a generar")
@@ -105,22 +124,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    rng = np.random.default_rng(args.seed)
-
-    rows_written = 0
-    first_chunk = True
-    start_id = 1
-
-    while rows_written < args.rows:
-        n = min(CHUNK_SIZE, args.rows - rows_written)
-        chunk = generate_chunk(n, rng, start_id)
-        chunk.to_csv(args.out, mode="w" if first_chunk else "a", header=first_chunk, index=False)
-        first_chunk = False
-        rows_written += n
-        start_id += n
-        print(f"Escritos {rows_written:,} / {args.rows:,} registros...")
-
-    print(f"Listo. Dataset generado en: {args.out}")
+    generate_dataset(args.rows, args.out, args.seed)
 
 
 if __name__ == "__main__":
