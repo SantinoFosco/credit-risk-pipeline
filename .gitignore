@@ -20,3 +20,11 @@ venv/
 
 # OS
 .DS_Store
+
+# Variables de entorno locales
+.env
+
+# Airflow (Docker) - generado localmente, no se versiona
+logs/
+config/
+plugins/
