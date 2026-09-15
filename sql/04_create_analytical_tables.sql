@@ -27,10 +27,10 @@ FROM `credit-risk-analytics-506721.credit_risk_analytics.raw_credit_data`;
 --- Creacion de tabla analitica para combinacion de variables con mas tasa de default
 CREATE OR REPLACE TABLE `credit-risk-analytics-506721.credit_risk_analytics.risk_category_data` AS
 SELECT CASE 
-WHEN late_payments_12m >= 3 AND debt_to_income_ratio > 0.43 THEN 'Very High Risk'
-WHEN late_payments_12m >= 3 AND debt_to_income_ratio <= 0.43 THEN 'High Risk'
-WHEN late_payments_12m < 3 AND debt_to_income_ratio > 0.43 THEN 'Medium Risk'
-ELSE 'Low Risk' END AS risk_category,
+WHEN late_payments_12m >= 3 AND debt_to_income_ratio > 0.43 THEN 'Riesgo Muy Alto'
+WHEN late_payments_12m >= 3 AND debt_to_income_ratio <= 0.43 THEN 'Riesgo Alto'
+WHEN late_payments_12m < 3 AND debt_to_income_ratio > 0.43 THEN 'Riesgo Medio'
+ELSE 'Riesgo Bajo' END AS risk_category,
 ROUND(AVG(CAST(default_flag AS INT)) * 100, 2) AS default_rate
 FROM `credit-risk-analytics-506721.credit_risk_analytics.raw_credit_data`
 GROUP BY risk_category
