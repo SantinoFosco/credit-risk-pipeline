@@ -151,7 +151,7 @@ se generan):
 - [x] Queries de análisis de riesgo
 - [x] Tablas analíticas materializadas (CTAS)
 - [x] DAG de Cloud Composer / Airflow
-- [ ] Dashboard en Looker Studio
+- [x] Dashboard en Looker Studio
 
 ## Cómo correrlo (local, sin Airflow)
 
