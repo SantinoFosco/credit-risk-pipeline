@@ -54,14 +54,16 @@ Diccionario de columnas de `raw_credit_data`:
 ```
 credit-risk-pipeline/
 ├── data/
-│   ├── raw/            # CSVs generados (no versionados salvo una muestra chica)
-│   └── processed/      # Salidas intermedias/locales, si aplica
-├── sql/                # DDL y queries de transformación/análisis en BigQuery
-├── python/             # Scripts de python con diferentes funcionalidades
-├── dags/               # DAG de Cloud Composer / Airflow
-│   └── scripts/        # Scripts de generación de datos y carga a BigQuery
-├── notebooks/          # Exploración y validación de datos
-├── dashboards/         # Notas/links del dashboard en Looker Studio
+│   ├── raw/               # CSVs generados (no versionados salvo una muestra chica)
+│   └── processed/         # Salidas intermedias/locales, si aplica
+├── sql/                   # DDL y queries de transformación/análisis en BigQuery
+├── dags/                  # DAG de Cloud Composer / Airflow
+│   └── scripts/           # Scripts de generación de datos y carga a BigQuery
+├── notebooks/              # Exploración y validación de datos
+├── dashboards/              # Notas/links del dashboard en Looker Studio
+├── docker-compose.yaml       # Entorno local de Airflow (oficial, con volúmenes propios)
+├── .env.example                # Plantilla de variables de entorno necesarias
+├── requirements.txt
 └── README.md
 ```
 
@@ -76,7 +78,7 @@ credit-risk-pipeline/
 | Archivo | Contenido |
 |---|---|
 | `01_create_raw_table.sql` | DDL de la tabla `raw_credit_data` (esquema, particionado, clustering) |
-| `02_data_quality_checks.sql` | Validaciones de calidad: duplicados en `person_id`, nulos en columnas críticas, valores fuera de rango o categorías inválidas |
+| `02_data_quality_checks.sql` | Validaciones de calidad mediante `ASSERT`: duplicados en `person_id`, nulos en columnas críticas, valores fuera de rango o categorías inválidas — cada uno corta el pipeline con un error real si falla |
 | `03_risk_analysis.sql` | Queries exploratorias de análisis de negocio (perfil de cartera, segmentación, detección de riesgo temprano) |
 | `04_create_analytical_tables.sql` | `CREATE OR REPLACE TABLE` — materializa el análisis en tablas persistentes para el dashboard |
 
@@ -93,10 +95,39 @@ una pregunta de negocio específica:
 | `high_risk_customers_data` | Cantidad de clientes con atrasos altos (≥3 en 12 meses) que todavía no cayeron en default |
 | `risk_category_data` | Tasa de default por combinación de ratio deuda/ingreso y atrasos de pago |
 
+## Orquestación con Airflow (`dags/data_loading_and_analysis_dag.py`)
+
+El DAG `data_loading_and_analysis_dag` encadena las 4 etapas del pipeline en
+orden estricto (cada tarea depende de que la anterior termine con éxito —
+"fail fast": si la validación de calidad falla, las tablas analíticas nunca
+se generan):
+
+| Orden | Tarea | Operator | Qué hace |
+|---|---|---|---|
+| 1 | `generate_dataset` | `PythonOperator` | Genera el CSV sintético |
+| 2 | `load_data_to_bigquery` | `PythonOperator` | Carga el CSV a `raw_credit_data` |
+| 3 | `data_quality_checks` | `BigQueryInsertJobOperator` | Corre los 11 `ASSERT` de `02_data_quality_checks.sql` |
+| 4 | `create_analytical_tables` | `BigQueryInsertJobOperator` | Corre `04_create_analytical_tables.sql` |
+
+### Cómo correr Airflow en local (Docker)
+
+1. Copiá `.env.example` a `.env` y completá los valores (ver comentarios en el archivo).
+2. Levantar el entorno (primera vez):
+```bash
+   docker compose up airflow-init
+   docker compose up
+```
+3. Entrar a la interfaz web: [http://localhost:8080](http://localhost:8080) — usuario y contraseña por defecto: `airflow` / `airflow`.
+4. La connection `google_cloud_default` (necesaria para las tareas de BigQuery)
+   se crea automáticamente a partir de la variable `AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
+   definida en `docker-compose.yaml` — no requiere configuración manual en la UI.
+5. Disparar el DAG manualmente desde la interfaz (botón ▶ "Trigger"), o esperar
+   a que corra solo según su `schedule` (`@daily`).
+
 ## Arquitectura (resumen)
 
 1. **Generación/ingesta**: `dags/scripts/generate_synthetic_data.py` genera el dataset y lo
-   deja en `data/raw/` (localmente) o en un bucket de Cloud Storage.
+   deja en `data/raw/`.
 2. **Carga a BigQuery**: `dags/scripts/load_to_bigquery.py` carga el CSV a
    `raw_credit_data` mediante `google-cloud-bigquery` (`WRITE_TRUNCATE`,
    esquema explícito).
@@ -105,9 +136,9 @@ una pregunta de negocio específica:
 4. **Transformación y materialización (SQL)**: `03_risk_analysis.sql` explora
    preguntas de negocio; `04_create_analytical_tables.sql` las persiste como
    tablas listas para consumir.
-5. **Orquestación**: un DAG de Airflow en `dags/` va a encadenar estos pasos
-   automáticamente (carga → validación → materialización), con manejo de
-   dependencias y errores. *(pendiente)*
+5. **Orquestación**: el DAG de Airflow (`dags/data_loading_and_analysis_dag.py`)
+   encadena las 4 tareas anteriores automáticamente, con manejo de
+   dependencias y validación real de errores.
 6. **Consumo**: dashboard en Looker Studio conectado directo a las tablas
    analíticas. *(pendiente)*
 
@@ -119,10 +150,10 @@ una pregunta de negocio específica:
 - [x] Validaciones de calidad de datos
 - [x] Queries de análisis de riesgo
 - [x] Tablas analíticas materializadas (CTAS)
-- [ ] DAG de Cloud Composer / Airflow
+- [x] DAG de Cloud Composer / Airflow
 - [ ] Dashboard en Looker Studio
 
-## Cómo correrlo (local)
+## Cómo correrlo (local, sin Airflow)
 
 ```bash
 # Crear y activar entorno virtual
@@ -141,4 +172,5 @@ python load_to_bigquery.py --path <ruta_al_csv> --table_id <proyecto.dataset.tab
 ```
 
 Luego, ejecutar en orden los archivos de `sql/` (01 → 04) desde la consola de
-BigQuery.
+BigQuery. Alternativamente, correr todo el pipeline orquestado con Airflow
+(ver sección anterior).
